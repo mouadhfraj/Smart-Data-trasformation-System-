@@ -1,0 +1,38 @@
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from .serializers import IntegrateQuerySerializer, ExecuteQuerySerializer
+from ..service.integration_service import IntegrationService
+from ..service.execution_service import ExecutionService
+
+@api_view(['POST'])
+def integrate_query(request):
+    serializer = IntegrateQuerySerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        result = IntegrationService.integrate_query(
+            serializer.validated_data['project_id'],
+            serializer.validated_data['validated_query']
+        )
+        return Response(result, status=status.HTTP_201_CREATED)
+    except Exception as e:
+        return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+@api_view(['POST'])
+def execute_query(request):
+    serializer = ExecuteQuerySerializer(data=request.data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        result = ExecutionService.execute_query(
+            serializer.validated_data['project_id'],
+            serializer.validated_data['model_name']
+        )
+        return Response(result)
+    except ValueError as e:
+        return Response({'detail': str(e)}, status=status.HTTP_404_NOT_FOUND)
+    except Exception as e:
+        return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

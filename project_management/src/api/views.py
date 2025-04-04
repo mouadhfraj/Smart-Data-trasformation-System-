@@ -24,10 +24,12 @@ def root_view(request):
         "endpoints": {
             "admin": "/admin/",
             "api_v1": "/api/v1/",
-            "list-projects": "projects/<int:user_id>/",
+            "list-projects": "/api/v1/projects/<int:user_id>/",
             "setup-project": "/api/v1/project/initialize/",
             "project-detail": "/api/v1/project/<int:project_id>/",
             "get-database-config": "/api/v1/database-configurations/<str:database_type>/",
+            "integrate-query": "/api/v1/integrate/",
+            "execute-query": "/api/v1/execute/",
         }
     })
 
