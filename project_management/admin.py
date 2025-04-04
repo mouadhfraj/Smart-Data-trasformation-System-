@@ -18,7 +18,7 @@ class DatabaseConfigurationAdmin(admin.ModelAdmin):
 
 @admin.register(ProjectMetadata)
 class ProjectMetadataAdmin(admin.ModelAdmin):
-    list_display = ('project_id', 'project_name', 'database_type', 'tool', 'is_active')
+    list_display = ('project_id', 'project_name', 'database_type', 'tool', 'is_active', 'github_link')
     list_filter = ('tool', 'is_active', 'database_type')
     search_fields = ('project_name', 'description')
     readonly_fields = ('created_at', 'updated_at')
