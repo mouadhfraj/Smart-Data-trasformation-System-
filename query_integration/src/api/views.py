@@ -20,6 +20,7 @@ def integrate_query(request):
     except Exception as e:
         return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 @api_view(['POST'])
 def execute_query(request):
     serializer = ExecuteQuerySerializer(data=request.data)
@@ -27,9 +28,14 @@ def execute_query(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     try:
+
+        run_all = serializer.validated_data.get('run_all', False)
+        model_name = None if run_all else serializer.validated_data['model_name']
+
         result = ExecutionService.execute_query(
             serializer.validated_data['project_id'],
-            serializer.validated_data['model_name']
+            model_name,
+            run_all=run_all
         )
         return Response(result)
     except ValueError as e:
