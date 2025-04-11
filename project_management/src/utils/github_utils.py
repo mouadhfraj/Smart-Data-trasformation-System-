@@ -1,3 +1,5 @@
+import os
+
 from github import Github
 from git import Repo
 
@@ -57,6 +59,11 @@ def push_to_github(repo_dir: str, repo_url: str,  github_token: str = None):
 
 
     repo = Repo.init(repo_dir)
+
+    """logs_dir = os.path.join(repo_dir, "logs")
+    os.makedirs(logs_dir, exist_ok=True)
+
+    repo.git.add(logs_dir, force=True)"""
 
 
     repo.git.add(A=True)

@@ -30,6 +30,7 @@ def root_view(request):
             "get-database-config": "/api/v1/database-configurations/<str:database_type>/",
             "integrate-query": "/api/v1/integrate/",
             "execute-query": "/api/v1/execute/",
+
         }
     })
 

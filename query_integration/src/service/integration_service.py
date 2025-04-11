@@ -42,7 +42,7 @@ class IntegrationService:
                          'GIT_PASSWORD': project.github_token}
                 )
 
-                project_path = os.path.join(temp_dir, project_name)
+                project_path = os.path.join(temp_dir)
 
 
                 query_with_refs = QueryAdapter.adapt_references(

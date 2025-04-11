@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
-
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -106,6 +106,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+
+GCP_PROJECT_ID = os.getenv('GCP_PROJECT_ID', 'starry-diode-450809-k0')
+GCP_REGION = os.getenv('GCP_REGION', 'europe-west3')
+GCP_SERVICE_ACCOUNT_KEY = os.getenv('C:\\Users\\elyadata\\Downloads\\starry-diode-450809-k0-d220807f4cb6.json')
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/

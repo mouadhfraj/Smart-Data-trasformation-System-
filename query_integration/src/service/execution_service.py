@@ -1,4 +1,6 @@
 import os
+import tempfile
+
 from django.utils import timezone
 from git import Repo
 from dbt.cli.main import dbtRunner
@@ -64,21 +66,20 @@ class ExecutionService:
                 query.save()
 
 
-            dir = os.path.expanduser(f"C:/Users/elyadata/Documents/executed_dbt_project/{project.project_name}")
-            os.makedirs(dir, exist_ok=True)
-            temp_dir = os.path.join(dir, f"{project.project_name}")
+            with tempfile.TemporaryDirectory() as temp_dir:
 
-            try:
+
+              try:
                 repo = Repo.clone_from(
                     project.github_link,
-                    dir,
+                    temp_dir,
                     branch='main',
                     env={'GIT_ASKPASS': 'echo', 'GIT_USERNAME': 'token',
                          'GIT_PASSWORD': project.github_token}
                 )
 
                 if project.tool == 'dbt':
-                    result = ExecutionService._execute_dbt(dir, temp_dir, model_name, run_all)
+                    result = ExecutionService._execute_dbt(temp_dir, model_name, run_all)
                 elif project.tool == 'sqlmesh':
                     result = ExecutionService._execute_sqlmesh(temp_dir, model_name, run_all)
                 else:
@@ -95,6 +96,8 @@ class ExecutionService:
                     query.end_time = timezone.now()
                     query.save()
 
+
+
                 return {
                     'status': 'completed',
                     'execution_id': str(query.query_id),
@@ -102,7 +105,7 @@ class ExecutionService:
                     'affected_queries': all_queries.count() if run_all else 1
                 }
 
-            except Exception as e:
+              except Exception as e:
 
                 if run_all:
                     all_queries.update(
@@ -121,7 +124,7 @@ class ExecutionService:
             raise Exception(f"Execution failed: {str(e)}")
 
     @staticmethod
-    def _execute_dbt(dir, project_dir, model_name=None, run_all=False):
+    def _execute_dbt( project_dir, model_name=None, run_all=False):
         """
         Execute a dbt model run or full project run.
 
@@ -141,10 +144,10 @@ class ExecutionService:
         Raises:
             Exception: If dbt execution fails
         """
-        os.chdir(dir)
-        os.environ["DBT_PROFILES_DIR"] = os.path.join(dir, "dbt_profiles")
-
         os.chdir(project_dir)
+        os.environ["DBT_PROFILES_DIR"] = os.path.join(project_dir, "dbt_profiles")
+
+
         dbt = dbtRunner()
 
         if run_all:
