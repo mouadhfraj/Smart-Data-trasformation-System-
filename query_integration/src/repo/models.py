@@ -1,4 +1,3 @@
-import uuid
 from django.db import models
 from project_management.src.repo.models import ProjectMetadata
 
@@ -25,3 +24,28 @@ class QueryIntegration(models.Model):
 
     class Meta:
         db_table = 'query_integration'
+
+
+from django.db import models
+from django.contrib.auth.models import User
+
+
+class JenkinsConfig(models.Model):
+    """
+    Stores Jenkins configuration for the application
+    """
+    name = models.CharField(max_length=100, unique=True, help_text="Configuration name")
+    jenkins_url = models.URLField(verbose_name="Jenkins URL")
+    jenkins_user = models.CharField(max_length=100, verbose_name="API Username")
+    jenkins_token = models.CharField(max_length=200, verbose_name="API Token")
+    backend_url = models.URLField(verbose_name="Backend URL")
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Jenkins Configuration"
+        verbose_name_plural = "Jenkins Configurations"

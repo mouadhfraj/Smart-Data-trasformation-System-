@@ -1,6 +1,5 @@
 import os
 import tempfile
-
 from django.utils import timezone
 from git import Repo
 from dbt.cli.main import dbtRunner
@@ -85,6 +84,12 @@ class ExecutionService:
                 else:
                     raise ValueError(f"Unsupported tool: {project.tool}")
 
+                log_dir = os.path.join(temp_dir, "logs")
+
+                if os.path.isdir(log_dir):
+                    print("Log directory exists.")
+                else:
+                    print("Log directory does not exist.")
 
                 if run_all:
                     all_queries.update(
@@ -97,13 +102,16 @@ class ExecutionService:
                     query.save()
 
 
-
                 return {
                     'status': 'completed',
                     'execution_id': str(query.query_id),
                     'details': result,
                     'affected_queries': all_queries.count() if run_all else 1
                 }
+
+
+
+
 
               except Exception as e:
 
@@ -117,6 +125,8 @@ class ExecutionService:
                     query.end_time = timezone.now()
                     query.save()
                 raise e
+
+
 
         except ObjectDoesNotExist:
             raise ValueError("Project not found")

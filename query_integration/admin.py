@@ -1,6 +1,7 @@
 from django.contrib import admin
 from .src.repo.models import QueryIntegration
-
+from .src.repo.models import JenkinsConfig
+from django import forms
 class QueryIntegrationAdmin(admin.ModelAdmin):
     list_display = ('query_id', 'project', 'target_tool', 'execution_status', 'created_at')
     list_filter = ('target_tool', 'execution_status', 'created_at')
@@ -21,3 +22,38 @@ class QueryIntegrationAdmin(admin.ModelAdmin):
     )
 
 admin.site.register(QueryIntegration, QueryIntegrationAdmin)
+
+
+
+
+class JenkinsConfigForm(forms.ModelForm):
+    class Meta:
+        model = JenkinsConfig
+        fields = '__all__'
+        widgets = {
+            'jenkins_token': forms.PasswordInput(render_value=True),
+        }
+
+
+@admin.register(JenkinsConfig)
+class JenkinsConfigAdmin(admin.ModelAdmin):
+    form = JenkinsConfigForm
+    list_display = ('name', 'jenkins_url')
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'created_by')
+        }),
+        ('Jenkins Configuration', {
+            'fields': (
+                'jenkins_url',
+                'jenkins_user',
+                'jenkins_token',
+                'backend_url'
+            )
+        }),
+    )
+
+    def save_model(self, request, obj, form, change):
+        if not obj.pk:
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)

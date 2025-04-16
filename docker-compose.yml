@@ -14,20 +14,22 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  jenkins:
-    image: jenkins
-    container_name: jenkins_container
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_container
     restart: always
-    ports:
-      - "8080:8080"
-      - "50000:50000"
-    volumes:
-      - jenkins_data:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      - DOCKER_HOST=unix:///var/run/docker.sock
+        PGADMIN_DEFAULT_EMAIL: mouadh@mouadh.com
+        PGADMIN_DEFAULT_PASSWORD: mouadh
+    ports:
+        - "5050:80"
+    depends_on:
+        - db
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+
 
 volumes:
     postgres_data:
     pgadmin_data:
-    jenkins_data:
+

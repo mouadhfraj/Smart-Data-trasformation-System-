@@ -1,3 +1,4 @@
+import json
 from abc import ABC, abstractmethod
 import os
 import subprocess
@@ -84,6 +85,7 @@ class DbtHandler(IBaseToolHandler):
 
         if self.database_type == "bigquery":
             dev_config.setdefault("method", "service-account")
+            dev_config["keyfile"] = "./dbt_profiles/service_account.json"
         elif self.database_type == "snowflake":
             dev_config.setdefault("warehouse", "compute_wh")
 
@@ -103,9 +105,60 @@ class DbtHandler(IBaseToolHandler):
         with open(profiles_path, "w") as f:
             yaml.dump(profiles_config, f)
 
+        if self.database_type == "bigquery":
+           keyfile_path = os.path.join(profiles_dir, "service_account.json")
+           keyfile_dict = db_metadata['keyfile']
+           with open(keyfile_path, 'w') as f:
+            f.write(json.dumps(keyfile_dict))
+
         os.environ["DBT_PROFILES_DIR"] = profiles_dir
 
+    def _generate_jenkinsfile(self) -> str:
+            """Generate minimal Jenkinsfile that works with existing profiles.yml"""
+            adapter_package = self.adapter_mapping.get(self.database_type.lower(), "")
+            return f"""pipeline {{
+                agent {{
+                    docker {{
+                        image 'mouadh07/dbt-custom:1.9'
+                        args '-u root -v /var/run/docker.sock:/var/run/docker.sock --network postgres_jenkins'
+                    }}
+                }}
 
+                environment {{
+                    
+                     PROJECT_ID = "${{params.PROJECT_ID}}"
+                     MODEL_NAME = "${{params.MODEL_NAME}}"
+                     RUN_ALL = "${{params.RUN_ALL}}".toBoolean()
+
+                    
+                    DBT_PROFILES_DIR = "${{WORKSPACE}}/dbt_profiles"
+                }}
+
+                stages {{
+                    stage('Setup') {{
+                        steps {{
+                            checkout scm
+                            
+                        }}
+                    }}
+
+                    stage('Run dbt') {{
+                        steps {{
+                            script {{
+                                if (env.RUN_ALL.toBoolean()) {{
+                                    sh 'dbt run'
+                                }} else {{
+                                    sh "dbt run --select ${{env.MODEL_NAME}}"
+                                }}
+                            }}
+                        }}
+                    }}
+
+                    
+                }}
+
+                
+            }}"""
 class SQLMeshHandler(IBaseToolHandler):
     def __init__(self, database_type):
         self.database_type = database_type
@@ -199,6 +252,11 @@ class ProjectService:
 
             handler.install_dependencies()
             handler.initialize_project(project_name, project_dir, database_metadata)
+
+            jenkinsfile_content = handler._generate_jenkinsfile()
+            jenkinsfile_path = os.path.join(project_dir, "Jenkinsfile")
+            with open(jenkinsfile_path, 'w') as f:
+                f.write(jenkinsfile_content)
 
 
             repo = create_github_repository(

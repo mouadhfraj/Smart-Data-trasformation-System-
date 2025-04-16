@@ -1,15 +1,10 @@
-import json
-
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
 from .serializers import IntegrateQuerySerializer, ExecuteQuerySerializer
 from ..service.integration_service import IntegrationService
-from ..service.execution_service import ExecutionService
-from ..service.github_execution_service import GitHubActionsExecutionService
+from ..service.pipeline_execution_service import ExecutionService
+
 
 @api_view(['POST'])
 def integrate_query(request):
@@ -49,13 +44,3 @@ def execute_query(request):
     except Exception as e:
         return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-@csrf_exempt
-@api_view(['POST'])
-def workflow_callback(request):
-    try:
-        payload = json.loads(request.body)
-        return JsonResponse(
-            GitHubActionsExecutionService.handle_webhook(payload)
-        )
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
