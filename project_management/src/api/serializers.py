@@ -29,3 +29,36 @@ class DatabaseConfigResponseSerializer(serializers.ModelSerializer):
     class Meta:
         model = DatabaseConfiguration
         fields = ['database_type', 'config_parameters']
+
+
+class DatabaseSchemaSerializer(serializers.Serializer):
+    """Serializer for database schema details response"""
+    project_id = serializers.IntegerField()
+    database_type = serializers.CharField()
+    schema = serializers.DictField(
+        child=serializers.DictField(
+            child=serializers.ListField(
+                child=serializers.DictField(
+                    child=serializers.CharField()
+                )
+            )
+        )
+    )
+    status = serializers.CharField()
+
+class ColumnDetailSerializer(serializers.Serializer):
+    """Serializer for individual column details"""
+    column_name = serializers.CharField()
+    data_type = serializers.CharField()
+
+class TableSchemaSerializer(serializers.Serializer):
+    """Serializer for table schema details"""
+    columns = serializers.ListField(child=ColumnDetailSerializer())
+
+class DatabaseSchemaDetailSerializer(serializers.Serializer):
+    """Detailed schema serializer with nested structure"""
+    schemas = serializers.DictField(
+        child=serializers.DictField(
+            child=TableSchemaSerializer()
+        )
+    )

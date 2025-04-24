@@ -37,7 +37,10 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'project_management',
     'query_integration',
+    'query_generation',
     'rest_framework',
+    'api_aggregation',
+
 ]
 
 MIDDLEWARE = [
@@ -70,6 +73,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'smart_system.wsgi.application'
 
+# Base URL for internal API requests
+INTERNAL_API_BASE_URL = 'http://127.0.0.1:8000'  # Change to your actual base URL
+
+# Requests timeout (seconds)
+REQUESTS_TIMEOUT = 30
 
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases

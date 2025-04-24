@@ -24,12 +24,15 @@ def root_view(request):
         "endpoints": {
             "admin": "/admin/",
             "api_v1": "/api/v1/",
-            "list-projects": "/api/v1/projects/<int:user_id>/",
-            "setup-project": "/api/v1/project/initialize/",
-            "project-detail": "/api/v1/project/<int:project_id>/",
+            "list-projects": "/api/v1/<int:user_id>/projects/",
+            "setup-project": "/api/v1/projects/initialize/",
+            "project-detail": "/api/v1/projects/<int:project_id>/",
             "get-database-config": "/api/v1/database-configurations/<str:database_type>/",
-            "integrate-query": "/api/v1/integrate/",
-            "execute-query": "/api/v1/execute/",
+            "get-database-schema": "/api/v1/api/v1/project/<int:project_id>/database-schema/",
+            "integrate-execute-query": "/api/v1/projects/<int:project_id>/query/integrate-execute/",
+            "execute-query": "/api/v1/projects/<int:project_id>/query/run/",
+            "generate-query": "/api/v1/projects/<int:project_id>/query/generate/",
+
 
         }
     })
@@ -110,3 +113,28 @@ def get_database_config(request, database_type):
         )
     except Exception as e:
         return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['GET'])
+def retrieve_database_schema(request, project_id):
+    """
+    Retrieve database schema details for a specific project.
+    """
+    try:
+
+        details = project_service.get_schema_details(project_id)
+
+        return Response({
+            'project_id': project_id,
+            'database_type': details['database_type'],
+            'schema': details['schema'],
+            'status': 'success'
+        })
+
+    except ValueError as e:
+        return Response({'detail': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    except Exception as e:
+        return Response(
+            {'detail': f"Database error: {str(e)}"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )

@@ -10,13 +10,25 @@ from ..service.pipeline_execution_service import ExecutionService
 def integrate_query(request):
     serializer = IntegrateQuerySerializer(data=request.data)
     if not serializer.is_valid():
+        print(f"Integrate query validation failed: {serializer.errors}")
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     try:
+        validated_data = serializer.validated_data
+        print(f"[IntegrateQuery] Validated data: {validated_data}")
+
+        # Debug individual parts
+        project_metadata = validated_data['project_metadata']
+        validated_query = validated_data['validated_query']
+
+        print(f"[IntegrateQuery] project_metadata keys: {list(project_metadata.keys())}")
+        print(f"[IntegrateQuery] validated_query keys: {list(validated_query.keys())}")
+
         result = IntegrationService.integrate_query(
-            serializer.validated_data['project_id'],
+            serializer.validated_data['project_metadata'],
             serializer.validated_data['validated_query']
         )
+        print(result)
         return Response(result, status=status.HTTP_201_CREATED)
     except Exception as e:
         return Response({'detail': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -26,6 +38,7 @@ def integrate_query(request):
 def execute_query(request):
     serializer = ExecuteQuerySerializer(data=request.data)
     if not serializer.is_valid():
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     try:
@@ -34,7 +47,7 @@ def execute_query(request):
         model_name = None if run_all else serializer.validated_data['model_name']
 
         result = ExecutionService.execute_query(
-            serializer.validated_data['project_id'],
+            serializer.validated_data['project_metadata'],
             model_name,
             run_all=run_all
         )

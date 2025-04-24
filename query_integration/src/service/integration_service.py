@@ -2,19 +2,18 @@ import os
 import tempfile
 from .adaptation_service import QueryAdapter
 from git import Repo
-from project_management.src.repo.models import ProjectMetadata
 from ..repo.models import QueryIntegration
 from django.core.exceptions import ObjectDoesNotExist
 
 
 class IntegrationService:
     @staticmethod
-    def integrate_query(project_id, validated_query):
+    def integrate_query(project_metadata, validated_query):
         """
         Integrate a SQL query into project repository and create a QueryIntegration record.
 
         Args:
-            project_id: PK of the ProjectMetadata
+            project_metadata: ProjectMetadata
             validated_query: {
                 'query': SQL string,
                 'model_name': model filename,
@@ -29,17 +28,17 @@ class IntegrationService:
             Exception: On integration failure (with error details)
         """
         try:
-            project = ProjectMetadata.objects.get(pk=project_id)
-            project_name = project.project_name
+
+            project_name = project_metadata['project_name']
 
             with tempfile.TemporaryDirectory() as temp_dir:
 
                 repo = Repo.clone_from(
-                    project.github_link,
+                    project_metadata['github_link'],
                     temp_dir,
                     branch='main',
                     env={'GIT_ASKPASS': 'echo', 'GIT_USERNAME': 'token',
-                         'GIT_PASSWORD': project.github_token}
+                         'GIT_PASSWORD': project_metadata['github_token']}
                 )
 
                 project_path = os.path.join(temp_dir)
@@ -52,11 +51,10 @@ class IntegrationService:
 
 
                 full_content = ""
-                if project.tool == 'dbt':
+                if project_metadata['tool'] == 'dbt':
                     full_content = (
                         f"{{{{ config(\n"
-                        f"    materialized='{validated_query.get('materialization', 'view')}',\n"
-                        f"    schema='{validated_query.get('schema', 'public')}'\n"
+                        f"    materialized='{validated_query.get('materialization', 'view')}'\n"
                         f") }}}}\n"
                         f"{query_with_refs}"
                     )
@@ -70,8 +68,8 @@ class IntegrationService:
                         **validated_query,
                         'final_query': full_content
                     },
-                    target_tool=project.tool,
-                    project=project
+                    target_tool=project_metadata['tool'],
+                    project_id=project_metadata['project_id']
                 )
 
 

@@ -10,11 +10,11 @@ class QueryIntegrationSerializer(serializers.ModelSerializer):
 
 class IntegrateQuerySerializer(serializers.Serializer):
     validated_query = serializers.JSONField()
-    project_id = serializers.IntegerField()
+    project_metadata = serializers.JSONField()
 
 
 class ExecuteQuerySerializer(serializers.Serializer):
-    project_id = serializers.IntegerField()
+    project_metadata = serializers.JSONField()
     model_name = serializers.CharField(max_length=100, required=False, allow_null=True)
     run_all = serializers.BooleanField(default=False, required=False)
 

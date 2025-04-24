@@ -22,4 +22,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/', include('project_management.src.api.urls')),
     path('api/v1/', include('query_integration.src.api.urls')),
+    path('api/v1/', include('query_generation.src.api.urls')),
+    path('api/v1/', include('api_aggregation.src.api.urls')),
 ]
+

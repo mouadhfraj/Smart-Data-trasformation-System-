@@ -6,7 +6,6 @@ from django.core.mail import send_mail
 from requests.auth import HTTPBasicAuth
 from django.utils import timezone
 from django.core.exceptions import ObjectDoesNotExist
-from project_management.src.repo.models import ProjectMetadata
 from ..repo.models import JenkinsConfig, QueryIntegration
 
 logger = logging.getLogger(__name__)
@@ -51,15 +50,15 @@ class JenkinsService:
         headers = {"Content-Type": "application/xml"}
 
 
-        github_token = project.github_token
-        github_username = project.github_link.split("github.com/")[1].split("/")[0]
+        github_token = project['github_token']
+        github_username = project['github_link'].split("github.com/")[1].split("/")[0]
 
 
         credentials_xml = f"""
         <com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl>
           <scope>GLOBAL</scope>
-          <id>{project.project_name}</id>
-          <description>GitHub token for {project.project_name}</description>
+          <id>{project['project_name']}</id>
+          <description>GitHub token for {project['project_name']}</description>
           <username>{github_username}</username>
           <password>{github_token}</password>
         </com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl>
@@ -86,7 +85,7 @@ class JenkinsService:
             config_xml = f"""<?xml version='1.1' encoding='UTF-8'?>
             <flow-definition plugin="workflow-job@1251.vd262f96922b_4">
               <actions/>
-              <description>{project.project_name} pipeline using Git SCM</description>
+              <description>{project['project_name']} pipeline using Git SCM</description>
               <keepDependencies>false</keepDependencies>
               <properties>
                 <org.jenkinsci.plugins.workflow.job.properties.BuildDiscarderProperty>
@@ -104,7 +103,7 @@ class JenkinsService:
                     <hudson.model.StringParameterDefinition>
                       <name>PROJECT_ID</name>
                       <description>Project ID for the dbt run</description>
-                      <defaultValue>{project.project_id}</defaultValue>
+                      <defaultValue>{project['project_id']}</defaultValue>
                     </hudson.model.StringParameterDefinition>
                     <hudson.model.StringParameterDefinition>
                       <name>MODEL_NAME</name>
@@ -125,8 +124,8 @@ class JenkinsService:
                   <configVersion>2</configVersion>
                   <userRemoteConfigs>
                     <hudson.plugins.git.UserRemoteConfig>
-                      <url>{project.github_link}</url>
-                      <credentialsId>{project.project_name}</credentialsId>
+                      <url>{project['github_link']}</url>
+                      <credentialsId>{project['project_name']}</credentialsId>
                     </hudson.plugins.git.UserRemoteConfig>
                   </userRemoteConfigs>
                   <branches>
@@ -146,13 +145,13 @@ class JenkinsService:
             </flow-definition>"""
 
             response = cls._make_jenkins_request(
-                f"{jenkins_url}/createItem?name={project.project_name}",
+                f"{jenkins_url}/createItem?name={project['project_name']}",
                 method='post',
                 auth=HTTPBasicAuth(username, api_token),
                 data=config_xml
             )
 
-            logger.info(f"Created Jenkins job: {project.project_name}")
+            logger.info(f"Created Jenkins job: {project['project_name']}")
             return True
 
         except Exception as e:
@@ -217,7 +216,7 @@ class ExecutionService:
 
 
     @staticmethod
-    def execute_query(project_id, model_name=None, run_all=False):
+    def execute_query(project_metadata, model_name=None, run_all=False):
         """
         Execute query by triggering Jenkins pipeline with proper status tracking
 
@@ -235,14 +234,14 @@ class ExecutionService:
             }
         """
         try:
-            project = ProjectMetadata.objects.get(pk=project_id)
+
             config = JenkinsConfig.objects.first()
 
             if not config:
                 raise Exception("Jenkins configuration not found")
 
             if run_all:
-                queries = QueryIntegration.objects.filter(project=project)
+                queries = QueryIntegration.objects.filter(project_id=project_metadata['project_id'])
                 queries.update(
                     execution_status=QueryIntegration.ExecutionStatus.RUNNING,
                     start_time=timezone.now()
@@ -250,7 +249,7 @@ class ExecutionService:
                 execution_id = str(queries.first().query_id)
             else:
                 query = QueryIntegration.objects.filter(
-                    project=project,
+                    project_id=project_metadata['project_id'],
                     adapted_query__model_name=model_name
                 ).order_by('-created_at').first()
                 if not query:
@@ -263,13 +262,13 @@ class ExecutionService:
 
             if not JenkinsService.job_exists(
                     config.jenkins_url,
-                    project.project_name,
+                    project_metadata['project_name'],
                     config.jenkins_user,
                     config.jenkins_token
             ):
                 JenkinsService.create_job(
                     config.jenkins_url,
-                    project,
+                    project_metadata,
                     config.jenkins_user,
                     config.jenkins_token,
                     model_name,
@@ -278,7 +277,7 @@ class ExecutionService:
 
 
             build_params = {
-                "PROJECT_ID": project_id,
+                "PROJECT_ID": project_metadata['project_id'],
                 "RUN_ALL": run_all,
                 "MODEL_NAME": model_name
             }
@@ -286,15 +285,15 @@ class ExecutionService:
 
             build_info = JenkinsService.trigger_build(
                 config.jenkins_url,
-                project.project_name,
+                project_metadata['project_name'],
                 config.jenkins_user,
                 config.jenkins_token,
                 params=build_params
             )
             ExecutionService._start_build_monitoring(
-                project_id=project_id,
+                project_metadata=project_metadata,
                 build_number=build_info['number'],
-                job_name=project.project_name,
+                job_name=project_metadata['project_name'],
                 model_name=model_name,
                 run_all=run_all,
                 build_url=build_info['url']
@@ -312,7 +311,7 @@ class ExecutionService:
         except Exception as e:
             logger.error(f"Query execution failed: {str(e)}")
             if run_all and 'project' in locals():
-                QueryIntegration.objects.filter(project=project).update(
+                QueryIntegration.objects.filter(project_id=project_metadata['project_id']).update(
                     execution_status=QueryIntegration.ExecutionStatus.FAILED,
                     end_time=timezone.now()
                 )
@@ -324,7 +323,7 @@ class ExecutionService:
             raise Exception(f"Pipeline trigger failed: {str(e)}")
 
     @staticmethod
-    def _start_build_monitoring(project_id, build_number, job_name, model_name, run_all, build_url):
+    def _start_build_monitoring(project_metadata, build_number, job_name, model_name, run_all, build_url):
         """
         Start background monitoring of Jenkins build status
         In production, this should be a Celery task
@@ -370,7 +369,7 @@ class ExecutionService:
                                 status = status_map.get(result)
 
 
-                            project = ProjectMetadata.objects.get(pk=project_id)
+
                             update_kwargs = {
                                 'execution_status': status,
                                 'end_time': timezone.now(),
@@ -378,10 +377,10 @@ class ExecutionService:
                             }
 
                             if run_all:
-                                QueryIntegration.objects.filter(project=project).update(**update_kwargs)
+                                QueryIntegration.objects.filter(project_id=project_metadata['project_id']).update(**update_kwargs)
                             else:
                                 query = QueryIntegration.objects.filter(
-                                    project=project,
+                                    project_id=project_metadata['project_id'],
                                     adapted_query__model_name=model_name
                                 ).order_by('-created_at').first()
                                 if query:
@@ -391,7 +390,7 @@ class ExecutionService:
 
 
                             ExecutionService._send_notifications(
-                                project_id,
+                                project_metadata,
                                 status,
                                 model_name,
                                 run_all,
@@ -423,7 +422,7 @@ class ExecutionService:
             except Exception as e:
                 logger.error(f"Build monitoring failed: {str(e)}")
                 try:
-                    project = ProjectMetadata.objects.get(pk=project_id)
+
                     update_kwargs = {
                         'execution_status': QueryIntegration.ExecutionStatus.FAILED,
                         'end_time': timezone.now(),
@@ -431,10 +430,10 @@ class ExecutionService:
                     }
 
                     if run_all:
-                        QueryIntegration.objects.filter(project=project).update(**update_kwargs)
+                        QueryIntegration.objects.filter(project_id=project_metadata['project_id']).update(**update_kwargs)
                     else:
                         query = QueryIntegration.objects.filter(
-                            project=project,
+                            project_id=project_metadata['project_id'],
                             adapted_query__model_name=model_name
                         ).order_by('-created_at').first()
                         if query:
@@ -447,16 +446,16 @@ class ExecutionService:
 
         Thread(target=monitor).start()
     @staticmethod
-    def _send_notifications(project_id, status, model_name, run_all, build_url):
+    def _send_notifications(project_metadata, status, model_name, run_all, build_url):
         """Send notifications to users about build completion"""
         try:
-            project = ProjectMetadata.objects.get(pk=project_id)
+
 
             if run_all:
-                queries = QueryIntegration.objects.filter(project=project)
+                queries = QueryIntegration.objects.filter(project_id=project_metadata['project_id'])
             else:
                 queries = QueryIntegration.objects.filter(
-                    project=project,
+                    project_id=project_metadata['project_id'],
                     adapted_query__model_name=model_name
                 ).order_by('-created_at')
 
@@ -469,7 +468,7 @@ class ExecutionService:
                 )
                 print(f"Notification for user : {message}")
                 send_mail(
-                    subject=f"Pipeline {status}: {project.project_name}",
+                    subject=f"Pipeline {status}: {project_metadata['project_name']}",
                     message=message,
                     from_email="mouadh.fraj@elyadata.com",
                     recipient_list=["mouad.fraj@ensi-uma.tn"],
