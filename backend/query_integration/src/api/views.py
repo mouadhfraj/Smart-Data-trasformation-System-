@@ -85,7 +85,7 @@ def get_execution(request, execution_id):
         execution = Execution.objects.get(execution_id=execution_id)
 
 
-        logs = "Execution details are being retrieved..."
+
 
 
         status_map = {
@@ -100,12 +100,12 @@ def get_execution(request, execution_id):
 
         response_data = {
             'id': str(execution.execution_id),
-
+            'model_name': execution.model_name ,
             'start_time': execution.start_time.isoformat() if execution.start_time else None,
             'end_time': execution.end_time.isoformat() if execution.end_time else None,
             'status': status,
             'execution_status': status,
-            'logs': logs,
+            'logs': execution.logs,
             'project_id': str(execution.project_id),
 
         }

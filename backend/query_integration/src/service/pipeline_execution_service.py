@@ -332,23 +332,26 @@ class ExecutionService:
                 if not config:
                     raise Exception("Jenkins configuration not found")
 
+                initial_log = f"Build started for {'all models' if run_all else model_name}\nBuild URL: {build_url}"
 
-
+                # Update execution with initial log
+                execution.logs = initial_log
+                execution.save(update_fields=['logs'])
 
                 send_execution_update(str(execution.execution_id), {
-                        'status': 'RUNNING',
-                        'logs': f"Build started for {'all models' if run_all else model_name}\nBuild URL: {build_url}",
-                        'build_url': build_url,
-                        'build_number': build_number,
-                        'timestamp': timezone.now().isoformat()
-                    })
+                    'status': 'RUNNING',
+                    'logs': initial_log,
+                    'build_url': build_url,
+                    'build_number': build_number,
+                    'timestamp': timezone.now().isoformat()
+                })
 
                 last_log_size = 0
-                timeout = time.time() + 7200
+                timeout = time.time() + 7200  # 2 hour timeout
 
                 while time.time() < timeout:
                     try:
-
+                        # Get build status
                         build_response = JenkinsService._make_jenkins_request(
                             f"{config.jenkins_url}/job/{job_name}/{build_number}/api/json",
                             auth=HTTPBasicAuth(config.jenkins_user, config.jenkins_token),
@@ -356,7 +359,7 @@ class ExecutionService:
                         )
                         build_data = build_response.json()
 
-
+                        # Get console output
                         console_response = JenkinsService._make_jenkins_request(
                             f"{config.jenkins_url}/job/{job_name}/{build_number}/consoleText",
                             auth=HTTPBasicAuth(config.jenkins_user, config.jenkins_token),
@@ -364,17 +367,18 @@ class ExecutionService:
                         )
                         console_text = console_response.text
 
-
+                        # Only update if there are new logs
                         if len(console_text) > last_log_size:
+                            # Update execution logs in database
+                            execution.logs = console_text
+                            execution.save(update_fields=['logs'])
+
                             update_data = {
                                 'status': 'RUNNING',
                                 'logs': console_text,
                                 'timestamp': timezone.now().isoformat()
                             }
-
-
                             send_execution_update(str(execution.execution_id), update_data)
-
                             last_log_size = len(console_text)
 
 
@@ -386,19 +390,18 @@ class ExecutionService:
                                 else Execution.ExecutionStatus.FAILED
                             )
 
-
+                            # Final update to execution
                             execution.execution_status = execution_status
                             execution.end_time = timezone.now()
+                            execution.logs = console_text  # Ensure final logs are saved
                             execution.save()
 
-
                             send_execution_update(str(execution.execution_id), {
-                                    'status': status,
-                                    'logs': console_text,
-                                    'end_time': timezone.now().isoformat(),
-                                    'timestamp': timezone.now().isoformat()
-                                })
-
+                                'status': status,
+                                'logs': console_text,
+                                'end_time': timezone.now().isoformat(),
+                                'timestamp': timezone.now().isoformat()
+                            })
 
                             ExecutionService._send_notifications(
                                 project_metadata,
@@ -409,7 +412,7 @@ class ExecutionService:
                             )
                             return
 
-                        time.sleep(5)
+                        time.sleep(5)  # Wait before next check
 
                     except requests.exceptions.RequestException as e:
                         logger.warning(f"Build status check failed: {str(e)}")
@@ -420,19 +423,19 @@ class ExecutionService:
                 error_message = "Build monitoring timeout reached after 2 hours"
                 logger.error(error_message)
 
+
                 execution.execution_status = Execution.ExecutionStatus.FAILED
                 execution.end_time = timezone.now()
+                execution.logs = f"{execution.logs or ''}\n\nERROR: {error_message}"
                 execution.save()
 
-
-
                 send_execution_update(str(execution.execution_id), {
-                        'status': 'FAILED',
-                        'logs': console_text + f"\n\nERROR: {error_message}",
-                        'end_time': timezone.now().isoformat(),
-                        'timestamp': timezone.now().isoformat(),
-                        'error': error_message
-                    })
+                    'status': 'FAILED',
+                    'logs': execution.logs,
+                    'end_time': timezone.now().isoformat(),
+                    'timestamp': timezone.now().isoformat(),
+                    'error': error_message
+                })
 
                 raise Exception(error_message)
 
@@ -442,24 +445,22 @@ class ExecutionService:
                     if 'execution' in locals():
                         execution.execution_status = Execution.ExecutionStatus.FAILED
                         execution.end_time = timezone.now()
+                        execution.logs = f"{execution.logs or ''}\n\nERROR: {str(e)}"
                         execution.save()
 
-
-
                     send_execution_update(str(execution.execution_id), {
-                                'status': 'FAILED',
-                                'logs': f"Monitoring failed: {str(e)}",
-                                'end_time': timezone.now().isoformat(),
-                                'timestamp': timezone.now().isoformat(),
-                                'error': str(e)
-                            })
+                        'status': 'FAILED',
+                        'logs': execution.logs if 'execution' in locals() else f"Monitoring failed: {str(e)}",
+                        'end_time': timezone.now().isoformat(),
+                        'timestamp': timezone.now().isoformat(),
+                        'error': str(e)
+                    })
                 except Exception as db_error:
                     logger.error(f"Failed to update failed status: {str(db_error)}")
 
 
         thread = Thread(target=monitor, daemon=True)
         thread.start()
-
     @staticmethod
     def _send_notifications(project_metadata, status, model_name, run_all, build_url):
         """Send notifications about build completion"""

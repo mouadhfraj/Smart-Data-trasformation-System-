@@ -42,6 +42,7 @@ class Execution(models.Model):
         choices=ExecutionStatus.choices,
         default=ExecutionStatus.PENDING
     )
+    logs = models.TextField(null=True, blank=True)
     start_time = models.DateTimeField(null=True, blank=True)
     end_time = models.DateTimeField(null=True, blank=True)
 

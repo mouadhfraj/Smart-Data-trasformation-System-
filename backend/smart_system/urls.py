@@ -24,5 +24,6 @@ urlpatterns = [
     path('api/v1/', include('query_integration.src.api.urls')),
     path('api/v1/', include('query_generation.src.api.urls')),
     path('api/v1/', include('api_aggregation.src.api.urls')),
+    path('api/v1/auth/', include('authentication.src.api.urls')),
 ]
 

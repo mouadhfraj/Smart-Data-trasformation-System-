@@ -43,9 +43,11 @@ INSTALLED_APPS = [
     'query_integration',
     'query_generation',
     'rest_framework',
+    'rest_framework.authtoken',
     'api_aggregation',
     'corsheaders',
     'channels',
+'authentication',
 
 ]
 ASGI_APPLICATION = 'smart_system.asgi.application'
@@ -69,13 +71,30 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+
 ]
 CORS_ALLOW_ALL_ORIGINS = True
+
+
 REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ]
 }
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
+
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False
+
 ROOT_URLCONF = 'smart_system.urls'
 
 TEMPLATES = [
@@ -96,8 +115,9 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'smart_system.wsgi.application'
 
+
 # Base URL for internal API requests
-INTERNAL_API_BASE_URL = 'http://127.0.0.1:8000'  # Change to your actual base URL
+INTERNAL_API_BASE_URL = 'http://127.0.0.1:8000'
 
 
 CORS_ALLOWED_ORIGINS = [

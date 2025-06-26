@@ -471,8 +471,7 @@ class ProjectService:
                 conn.close()
 
     def _get_mysql_schema(self, db_metadata):
-        import mysql.connector
-        from mysql.connector import Error as MySQLError
+
 
         conn = None
         try:
