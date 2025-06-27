@@ -26,7 +26,7 @@ class QueryGenerationService:
         Raises:
             LLMGenerationError: If query generation fails
         """
-        os.environ["GROQ_API_KEY"] = ""
+
 
         try:
 
