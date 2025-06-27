@@ -26,7 +26,7 @@ class QueryGenerationService:
         Raises:
             LLMGenerationError: If query generation fails
         """
-        """os.environ["GROQ_API_KEY"] = "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"""
+        os.environ["GROQ_API_KEY"] = ""
 
         try:
 
